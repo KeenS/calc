@@ -63,7 +63,11 @@ fn binop1(input: &str) -> IResult<&str, BinOp> {
     };
     let mut input_mut = input;
     loop {
-        let (input, op) = match parse_op(input_mut) {
+        let (input, _) = match multispace0(input_mut) {
+            Ok(ok) => ok,
+            Err(_) => return Ok((input_mut, ret)),
+        };
+        let (input, op) = match parse_op(input) {
             Ok(ok) => ok,
             Err(_) => return Ok((input_mut, ret)),
         };
@@ -85,7 +89,7 @@ named!(expr2 <&str, Expr>, alt_complete!(
 
 fn binop2(input: &str) -> IResult<&str, BinOp> {
     named!(parse_op <&str, Op>,
-           alt!(map!(tag!("+"), |_|Op::Add) | map!(tag!("-"), |_|Op::Sub)));
+           alt!(map!(tag!("*"), |_|Op::Mul) | map!(tag!("/"), |_|Op::Div)));
 
     let (input, l) = expr3(input)?;
     let (input, _) = multispace0(input)?;
@@ -99,7 +103,11 @@ fn binop2(input: &str) -> IResult<&str, BinOp> {
     };
     let mut input_mut = input;
     loop {
-        let (input, op) = match parse_op(input_mut) {
+        let (input, _) = match multispace0(input_mut) {
+            Ok(ok) => ok,
+            Err(_) => return Ok((input_mut, ret)),
+        };
+        let (input, op) = match parse_op(input) {
             Ok(ok) => ok,
             Err(_) => return Ok((input_mut, ret)),
         };
@@ -114,7 +122,7 @@ fn binop2(input: &str) -> IResult<&str, BinOp> {
     }
 }
 
-named!(expr3 <&str, Expr>, map!(number Expr::Number));
+named!(expr3 <&str, Expr>, map!(number, Expr::Number));
 
 named!(number<&str, Number>, map!(atom_number, Number));
 
@@ -173,6 +181,44 @@ fn test_expr_add3() {
                 l: Box::new(Expr::BinOp(BinOp {
                     l: Box::new(Expr::Number(Number(1))),
                     op: Op::Add,
+                    r: Box::new(Expr::Number(Number(2))),
+                })),
+                op: Op::Add,
+                r: Box::new(Expr::Number(Number(3)))
+            })
+        ))
+    )
+}
+
+#[test]
+fn test_expr_add_mul() {
+    assert_eq!(
+        expr("1 + 2 * 3 "),
+        Ok((
+            " ",
+            Expr::BinOp(BinOp {
+                l: Box::new(Expr::Number(Number(1))),
+                op: Op::Add,
+                r: Box::new(Expr::BinOp(BinOp {
+                    l: Box::new(Expr::Number(Number(2))),
+                    op: Op::Mul,
+                    r: Box::new(Expr::Number(Number(3))),
+                }))
+            })
+        ))
+    )
+}
+
+#[test]
+fn test_expr_mul_add() {
+    assert_eq!(
+        expr("1 * 2 + 3 "),
+        Ok((
+            " ",
+            Expr::BinOp(BinOp {
+                l: Box::new(Expr::BinOp(BinOp {
+                    l: Box::new(Expr::Number(Number(1))),
+                    op: Op::Mul,
                     r: Box::new(Expr::Number(Number(2))),
                 })),
                 op: Op::Add,
