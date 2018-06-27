@@ -243,7 +243,43 @@ fn test_atom_number_negn() {
     assert_eq!(atom_number("-10 "), Ok((" ", -10)))
 }
 
+fn calc(e: Expr) -> i64 {
+    match e {
+        Expr::Number(Number(n)) => n,
+        Expr::BinOp(BinOp { l, op, r }) => {
+            use self::Op::*;
+
+            let l = calc(*l);
+            let r = calc(*r);
+            match op {
+                Add => l + r,
+                Sub => l - r,
+                Mul => l * r,
+                Div => l / r,
+            }
+        }
+    }
+}
+
 fn main() {
-    let _e = expr("");
-    println!("Hello, world!");
+    use std::io;
+    use std::io::prelude::*;
+    let stdin = io::stdin();
+    let mut stdin = io::BufReader::new(stdin.lock());
+    let stdout = io::stdout();
+    let mut stdout = stdout.lock();
+    loop {
+        let mut input = String::new();
+        stdout
+            .write_all(b"> ")
+            .and_then(|_| stdout.flush())
+            .expect("faild writing to stdout");
+        stdin
+            .read_line(&mut input)
+            .expect("failed reading from stdin");
+        match expr(&input) {
+            Ok((_rest, e)) => println!("{}", calc(e)),
+            Err(e) => eprintln!("{}", e),
+        }
+    }
 }
